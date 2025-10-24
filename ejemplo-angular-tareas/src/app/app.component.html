@@ -1,0 +1,14 @@
+<mat-toolbar color="primary">
+  <button mat-button routerLink="/">
+    <mat-icon>home</mat-icon>
+    Inicio
+  </button>
+  <button mat-button routerLink="/peliculas">
+    <mat-icon>movie</mat-icon>
+    Películas
+  </button>
+  <span class="spacer"></span>
+  <span>{{ title }}</span>
+</mat-toolbar>
+
+<router-outlet />

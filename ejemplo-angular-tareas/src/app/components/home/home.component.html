@@ -1,0 +1,41 @@
+<div class="container">
+  <mat-card class="welcome-card">
+    <mat-card-header>
+      <mat-card-title>
+        <mat-icon>movie</mat-icon>
+        Bienvenido a Mi Colección de Películas
+      </mat-card-title>
+    </mat-card-header>
+
+    <mat-card-content>
+      <div class="features">
+        <h3>Características:</h3>
+        <div class="feature-list">
+          <div class="feature-item">
+            <mat-icon color="primary">list</mat-icon>
+            <span>Ver catálogo de películas</span>
+          </div>
+          <div class="feature-item">
+            <mat-icon color="primary">info</mat-icon>
+            <span>Ver detalles completos</span>
+          </div>
+          <div class="feature-item">
+            <mat-icon color="primary">visibility</mat-icon>
+            <span>Marcar como vista</span>
+          </div>
+          <div class="feature-item">
+            <mat-icon color="primary">star</mat-icon>
+            <span>Ver calificaciones</span>
+          </div>
+        </div>
+      </div>
+    </mat-card-content>
+
+    <mat-card-actions>
+      <button mat-raised-button color="primary" (click)="irAPeliculas()">
+        <mat-icon>arrow_forward</mat-icon>
+        Ver Películas
+      </button>
+    </mat-card-actions>
+  </mat-card>
+</div>
