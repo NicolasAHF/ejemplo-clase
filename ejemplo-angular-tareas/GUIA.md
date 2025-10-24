@@ -649,26 +649,56 @@ export class PeliculaDetailComponent implements OnInit {
 
 **Explicar**: Ahora vamos a cambiar el servicio para que consuma datos de una API real.
 
-### Paso 4.1: API de prueba
+### Paso 4.1: Preparar la API de Películas
 
-Vamos a usar **JSONPlaceholder** (API pública de prueba):
-- URL: `https://jsonplaceholder.typicode.com/todos`
+Vamos a usar nuestra propia **API de Películas (TareasAPI)** que ya hemos creado en .NET.
 
-**Mostrar la estructura de datos en el navegador**:
+**Endpoints disponibles**:
+- `GET /api/peliculas` - Obtener todas las películas
+- `GET /api/peliculas/{id}` - Obtener una película por ID
+- `POST /api/peliculas` - Crear una nueva película
+- `PUT /api/peliculas/{id}` - Actualizar una película existente
+- `PATCH /api/peliculas/{id}/cambiar-estado-vista` - Cambiar el estado vista/no vista
+- `DELETE /api/peliculas/{id}` - Eliminar una película
+
+**Estructura de datos que devuelve la API** (`PeliculaDto`):
 ```json
 {
-  "userId": 1,
   "id": 1,
-  "title": "delectus aut autem",
-  "completed": false
+  "titulo": "El Padrino",
+  "director": "Francis Ford Coppola",
+  "anio": 1972,
+  "genero": "Drama",
+  "vista": false,
+  "calificacion": 9.2
+}
+```
+
+**Estructura para crear una película** (`CrearPeliculaDto`):
+```json
+{
+  "titulo": "El Padrino",
+  "director": "Francis Ford Coppola",
+  "anio": 1972,
+  "genero": "Drama",
+  "calificacion": 9.2
 }
 ```
 
 ---
 
-### Paso 4.2: Preparar el modelo para la API
+### Paso 4.2: Levantar la API
 
-**Explicar**: La API devuelve datos con nombres en inglés (`title`, `completed`), pero seguiremos usando nuestra interfaz `Pelicula` con nombres en español. El servicio se encargará de adaptar los datos.
+Antes de continuar, asegúrate de tener la API corriendo:
+
+```bash
+cd TareasApi
+dotnet run --project WebApi
+```
+
+La API estará disponible en: `http://localhost:5000` o `https://localhost:5001`
+
+**Probar en el navegador**: Abre `https://localhost:5001/api/peliculas` para ver el listado de películas.
 
 ---
 
@@ -679,46 +709,47 @@ Vamos a usar **JSONPlaceholder** (API pública de prueba):
 ```typescript
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable } from 'rxjs';
 import { Pelicula } from '../models/pelicula';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PeliculaService {
-  private apiUrl = 'https://jsonplaceholder.typicode.com/todos';
+  // URL base de nuestra API
+  private apiUrl = 'http://localhost:5000/api/peliculas';
 
   // Inyectamos HttpClient
   constructor(private http: HttpClient) { }
 
   // Obtener todas las películas desde la API
   getPeliculas(): Observable<Pelicula[]> {
-    return this.http.get<any[]>(this.apiUrl).pipe(
-      map(peliculasAPI => peliculasAPI.slice(0, 10).map(peliculaAPI => this.adaptPelicula(peliculaAPI)))
-    );
+    return this.http.get<Pelicula[]>(this.apiUrl);
   }
 
   // Obtener una película por ID desde la API
   getPeliculaById(id: number): Observable<Pelicula> {
-    return this.http.get<any>(`${this.apiUrl}/${id}`).pipe(
-      map(peliculaAPI => this.adaptPelicula(peliculaAPI))
-    );
+    return this.http.get<Pelicula>(`${this.apiUrl}/${id}`);
   }
 
-  // Método privado para adaptar los datos de la API a nuestro modelo
-  private adaptPelicula(peliculaAPI: any): Pelicula {
-    const directores = ['Francis Ford Coppola', 'Quentin Tarantino', 'Christopher Nolan', 'Martin Scorsese', 'Steven Spielberg'];
-    const generos = ['Drama', 'Ciencia Ficción', 'Crimen', 'Thriller', 'Aventura'];
+  // Crear una nueva película
+  crearPelicula(pelicula: Omit<Pelicula, 'id' | 'vista'>): Observable<Pelicula> {
+    return this.http.post<Pelicula>(this.apiUrl, pelicula);
+  }
 
-    return {
-      id: peliculaAPI.id,
-      titulo: peliculaAPI.title,
-      director: directores[peliculaAPI.id % directores.length],
-      anio: 1980 + (peliculaAPI.id % 40),
-      genero: generos[peliculaAPI.id % generos.length],
-      vista: peliculaAPI.completed,
-      calificacion: 6.0 + (peliculaAPI.id % 4)
-    };
+  // Actualizar una película existente
+  actualizarPelicula(id: number, pelicula: Omit<Pelicula, 'id' | 'vista'>): Observable<void> {
+    return this.http.put<void>(`${this.apiUrl}/${id}`, pelicula);
+  }
+
+  // Cambiar el estado vista/no vista de una película
+  toggleVista(id: number): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${id}/cambiar-estado-vista`, {});
+  }
+
+  // Eliminar una película
+  eliminarPelicula(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
   }
 }
 ```
@@ -740,22 +771,22 @@ export class PeliculaService {
    - `Observable` representa un flujo de datos que llegará en el futuro
    - Es como una promesa pero más potente
 
-3. **Operador map**:
-   ```typescript
-   .pipe(map(peliculasAPI => ...))
-   ```
-   - `pipe` nos permite transformar los datos
-   - `map` transforma cada elemento del array
-   - El método `adaptPelicula()` convierte los datos de la API (en inglés) a nuestro modelo (en español)
+3. **Métodos HTTP**:
+   - `http.get<T>()` - Realizar petición GET (obtener datos)
+   - `http.post<T>()` - Realizar petición POST (crear)
+   - `http.put<T>()` - Realizar petición PUT (actualizar completo)
+   - `http.patch<T>()` - Realizar petición PATCH (actualizar parcial)
+   - `http.delete<T>()` - Realizar petición DELETE (eliminar)
 
-4. **slice(0, 10)**:
-   - La API devuelve 200 items, solo tomamos 10
+4. **Tipado con TypeScript**:
+   - `http.get<Pelicula[]>()` le dice a TypeScript qué tipo de datos esperamos
+   - Esto nos da autocompletado y detección de errores
+   - La API devuelve exactamente el mismo formato que nuestro modelo `Pelicula`
 
-5. **Método adaptPelicula()**:
-   - Recibe los datos de la API con propiedades en inglés (`title`, `completed`)
-   - Los transforma a nuestro modelo con propiedades en español (`titulo`, `vista`)
-   - Agrega datos adicionales como `director`, `anio`, `genero` y `calificacion`
-   - Usa el ID para generar valores variados pero consistentes
+5. **No necesitamos adaptadores**:
+   - A diferencia del ejemplo anterior con JSONPlaceholder, nuestra API ya devuelve los datos en el formato correcto
+   - Los nombres de las propiedades coinciden exactamente: `titulo`, `director`, `anio`, `genero`, `vista`, `calificacion`
+   - Esto hace el código más simple y directo
 
 ---
 
@@ -802,6 +833,7 @@ import { Pelicula } from '../../models/pelicula';
 })
 export class PeliculaListComponent implements OnInit {
   peliculas: Pelicula[] = [];
+  cargando: boolean = false;
 
   constructor(
     private peliculaService: PeliculaService,
@@ -809,15 +841,19 @@ export class PeliculaListComponent implements OnInit {
   ) { }
 
   ngOnInit(): void {
-    // ANTES: this.peliculas = this.peliculaService.getPeliculas();
+    this.cargarPeliculas();
+  }
 
-    // AHORA: Nos suscribimos al Observable
+  cargarPeliculas(): void {
+    this.cargando = true;
     this.peliculaService.getPeliculas().subscribe({
       next: (peliculas) => {
         this.peliculas = peliculas;
+        this.cargando = false;
       },
       error: (error) => {
         console.error('Error al cargar películas:', error);
+        this.cargando = false;
       }
     });
   }
@@ -825,10 +861,36 @@ export class PeliculaListComponent implements OnInit {
   verDetalle(id: number): void {
     this.router.navigate(['/pelicula', id]);
   }
+
+  toggleVista(id: number): void {
+    this.peliculaService.toggleVista(id).subscribe({
+      next: () => {
+        // Recargar la lista después de cambiar el estado
+        this.cargarPeliculas();
+      },
+      error: (error) => {
+        console.error('Error al cambiar estado:', error);
+      }
+    });
+  }
+
+  eliminarPelicula(id: number): void {
+    if (confirm('¿Estás seguro de que deseas eliminar esta película?')) {
+      this.peliculaService.eliminarPelicula(id).subscribe({
+        next: () => {
+          // Recargar la lista después de eliminar
+          this.cargarPeliculas();
+        },
+        error: (error) => {
+          console.error('Error al eliminar película:', error);
+        }
+      });
+    }
+  }
 }
 ```
 
-**Subscribe**:
+**Subscribe - Explicación detallada**:
 
 ```typescript
 this.peliculaService.getPeliculas().subscribe({
@@ -844,9 +906,15 @@ this.peliculaService.getPeliculas().subscribe({
 ```
 
 - `subscribe()` activa la petición HTTP
-- Sin `subscribe()`, la petición no se ejecuta
-- `next`: función que se ejecuta cuando llegan los datos
-- `error`: función que se ejecuta si algo sale mal
+- Sin `subscribe()`, la petición no se ejecuta (los Observables son "lazy")
+- `next`: función que se ejecuta cuando llegan los datos exitosamente
+- `error`: función que se ejecuta si algo sale mal (error de red, error 404, etc.)
+
+**Cambios importantes**:
+- Agregamos un método `cargarPeliculas()` para reutilizar la lógica
+- `toggleVista()` ahora llama a la API y recarga la lista
+- `eliminarPelicula()` elimina de la base de datos y recarga la lista
+- Agregamos una variable `cargando` para mostrar feedback al usuario
 
 ---
 
@@ -894,9 +962,204 @@ export class PeliculaDetailComponent implements OnInit {
 
 ---
 
+### Paso 4.6: Configurar CORS en la API .NET
+
+**Problema común**: Al intentar consumir la API desde Angular, puedes encontrar errores de CORS (Cross-Origin Resource Sharing).
+
+**Solución**: Ya debería estar configurado en tu API, pero verifica que el archivo `Program.cs` incluya:
+
+```csharp
+// Agregar antes de var app = builder.Build();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular", policy =>
+    {
+        policy.WithOrigins("http://localhost:4200")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+// Agregar después de var app = builder.Build();
+app.UseCors("AllowAngular");
+```
+
+**Explicar**:
+- CORS es un mecanismo de seguridad del navegador
+- Por defecto, las APIs no permiten peticiones desde otros orígenes (dominios)
+- `AllowAngular` es el nombre de nuestra política
+- `WithOrigins("http://localhost:4200")` permite peticiones solo desde Angular
+- `AllowAnyHeader()` y `AllowAnyMethod()` permiten todos los headers y métodos HTTP
+
+---
+
+### Paso 4.7: Ejemplo completo - Crear una nueva película
+
+Ahora vamos a agregar funcionalidad para crear películas desde Angular.
+
+**Paso 1**: Crear un componente para el formulario
+
+```bash
+ng generate component components/pelicula-form
+```
+
+**Archivo**: `src/app/components/pelicula-form/pelicula-form.component.ts`
+
+```typescript
+import { Component } from '@angular/core';
+import { Router } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { PeliculaService } from '../../services/pelicula.service';
+import { Pelicula } from '../../models/pelicula';
+
+@Component({
+  selector: 'app-pelicula-form',
+  imports: [FormsModule],
+  templateUrl: './pelicula-form.component.html',
+  styleUrl: './pelicula-form.component.css'
+})
+export class PeliculaFormComponent {
+  // Modelo del formulario
+  pelicula = {
+    titulo: '',
+    director: '',
+    anio: new Date().getFullYear(),
+    genero: '',
+    calificacion: 5.0
+  };
+
+  constructor(
+    private peliculaService: PeliculaService,
+    private router: Router
+  ) { }
+
+  guardar(): void {
+    this.peliculaService.crearPelicula(this.pelicula).subscribe({
+      next: (peliculaCreada) => {
+        console.log('Película creada:', peliculaCreada);
+        // Navegar a la lista de películas
+        this.router.navigate(['/peliculas']);
+      },
+      error: (error) => {
+        console.error('Error al crear película:', error);
+      }
+    });
+  }
+
+  cancelar(): void {
+    this.router.navigate(['/peliculas']);
+  }
+}
+```
+
+**Archivo**: `src/app/components/pelicula-form/pelicula-form.component.html`
+
+```html
+<div>
+  <h2>Nueva Película</h2>
+  <form (ngSubmit)="guardar()">
+    <div>
+      <label>Título:</label>
+      <input type="text" [(ngModel)]="pelicula.titulo" name="titulo" required>
+    </div>
+
+    <div>
+      <label>Director:</label>
+      <input type="text" [(ngModel)]="pelicula.director" name="director" required>
+    </div>
+
+    <div>
+      <label>Año:</label>
+      <input type="number" [(ngModel)]="pelicula.anio" name="anio" required>
+    </div>
+
+    <div>
+      <label>Género:</label>
+      <input type="text" [(ngModel)]="pelicula.genero" name="genero" required>
+    </div>
+
+    <div>
+      <label>Calificación (0-10):</label>
+      <input type="number" [(ngModel)]="pelicula.calificacion" name="calificacion"
+             min="0" max="10" step="0.1" required>
+    </div>
+
+    <button type="submit">Guardar</button>
+    <button type="button" (click)="cancelar()">Cancelar</button>
+  </form>
+</div>
+```
+
+**Paso 2**: Agregar la ruta
+
+**Archivo**: `src/app/app.routes.ts`
+
+```typescript
+import { Routes } from '@angular/router';
+import { HomeComponent } from './components/home/home.component';
+import { PeliculaListComponent } from './components/pelicula-list/pelicula-list.component';
+import { PeliculaDetailComponent } from './components/pelicula-detail/pelicula-detail.component';
+import { PeliculaFormComponent } from './components/pelicula-form/pelicula-form.component';
+
+export const routes: Routes = [
+  { path: '', component: HomeComponent },
+  { path: 'peliculas', component: PeliculaListComponent },
+  { path: 'peliculas/nueva', component: PeliculaFormComponent },  // ← Nueva ruta
+  { path: 'pelicula/:id', component: PeliculaDetailComponent },
+  { path: '**', redirectTo: '' }
+];
+```
+
+**IMPORTANTE**: La ruta `peliculas/nueva` debe ir ANTES de `pelicula/:id` para evitar que Angular interprete "nueva" como un ID.
+
+**Paso 3**: Agregar enlace en la lista
+
+**Archivo**: `src/app/components/pelicula-list/pelicula-list.component.html` (agregar al inicio)
+
+```html
+<div>
+  <h1>Catálogo de Películas</h1>
+  <button routerLink="/peliculas/nueva">➕ Agregar Nueva Película</button>
+
+  <!-- ... resto del HTML ... -->
+</div>
+```
+
+**Explicación del formulario**:
+
+1. **FormsModule**:
+   - Necesario para usar `[(ngModel)]` (two-way data binding)
+   - Se importa en el componente con standalone imports
+
+2. **ngModel**:
+   ```html
+   <input [(ngModel)]="pelicula.titulo" name="titulo">
+   ```
+   - `[(ngModel)]` crea un binding bidireccional
+   - Cuando el usuario escribe, `pelicula.titulo` se actualiza automáticamente
+   - Requiere el atributo `name`
+
+3. **ngSubmit**:
+   ```html
+   <form (ngSubmit)="guardar()">
+   ```
+   - Se ejecuta cuando se envía el formulario
+   - Previene el comportamiento por defecto del formulario
+
+4. **POST a la API**:
+   ```typescript
+   this.peliculaService.crearPelicula(this.pelicula).subscribe(...)
+   ```
+   - Envía los datos del formulario a la API
+   - La API crea la película en la base de datos
+   - Al recibir respuesta exitosa, navegamos a la lista
+
+---
+
 ## 🔗 Recursos Adicionales
 
 - [Documentación oficial de Angular](https://angular.dev)
 - [RxJS para principiantes](https://rxjs.dev/guide/overview)
-- [JSONPlaceholder API](https://jsonplaceholder.typicode.com/)
 - [Angular Router Guide](https://angular.dev/guide/routing)
+- [Angular Forms Guide](https://angular.dev/guide/forms)
+- [ASP.NET Core CORS](https://learn.microsoft.com/en-us/aspnet/core/security/cors)
