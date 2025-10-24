@@ -1,0 +1,38 @@
+<div class="container">
+  <h1>Catálogo de Películas</h1>
+
+  <div class="pelicula-grid">
+    @for (pelicula of peliculas; track pelicula.id) {
+      <mat-card class="pelicula-card">
+        <mat-card-header>
+          <mat-card-title>{{ pelicula.titulo }}</mat-card-title>
+          <mat-card-subtitle>
+            {{ pelicula.director }} ({{ pelicula.anio }})
+          </mat-card-subtitle>
+        </mat-card-header>
+
+        <mat-card-content>
+          <p><strong>Género:</strong> {{ pelicula.genero }}</p>
+          <p><strong>Calificación:</strong> {{ pelicula.calificacion }}/10</p>
+          <mat-chip-set>
+            <mat-chip [class.vista-chip]="pelicula.vista">
+              <mat-icon>{{ pelicula.vista ? 'visibility' : 'visibility_off' }}</mat-icon>
+              {{ pelicula.vista ? 'Vista' : 'No vista' }}
+            </mat-chip>
+          </mat-chip-set>
+        </mat-card-content>
+
+        <mat-card-actions align="end">
+          <button mat-button (click)="toggleVista(pelicula.id)">
+            <mat-icon>{{ pelicula.vista ? 'undo' : 'check' }}</mat-icon>
+            {{ pelicula.vista ? 'Marcar no vista' : 'Marcar vista' }}
+          </button>
+          <button mat-raised-button color="primary" (click)="verDetalle(pelicula.id)">
+            <mat-icon>info</mat-icon>
+            Ver Detalle
+          </button>
+        </mat-card-actions>
+      </mat-card>
+    }
+  </div>
+</div>
